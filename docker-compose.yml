@@ -1,0 +1,10 @@
+services:
+  dashboard:
+    build: .
+    ports: ["8501:8501"]
+    volumes: ["./data:/app/data", "./outputs:/app/outputs", "./mlruns:/app/mlruns"]
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    command: mlflow ui --host 0.0.0.0 --backend-store-uri file:/mlruns
+    ports: ["5000:5000"]
+    volumes: ["./mlruns:/mlruns"]

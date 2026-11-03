@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+mlruns/
+.env
+.streamlit/secrets.toml
+data/raw/*
+data/processed/*
+outputs/*
+.venv/
+src/retailpulse.egg-info/
