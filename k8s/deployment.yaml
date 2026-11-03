@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: retailpulse}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: retailpulse}}
+  template:
+    metadata: {labels: {app: retailpulse}}
+    spec:
+      containers:
+        - name: dashboard
+          image: retailpulse:latest   # push to your registry and update
+          ports: [{containerPort: 8501}]
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "1", memory: 2Gi}
+          readinessProbe:
+            httpGet: {path: /_stcore/health, port: 8501}
+            initialDelaySeconds: 20
+          volumeMounts: [{name: outputs, mountPath: /app/outputs}]
+      volumes:
+        - name: outputs
+          persistentVolumeClaim: {claimName: retailpulse-outputs}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: retailpulse-outputs}
+spec:
+  accessModes: [ReadWriteMany]
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: retailpulse}
+spec:
+  type: LoadBalancer
+  selector: {app: retailpulse}
+  ports: [{port: 80, targetPort: 8501}]
+---
+# Nightly retraining: ETL -> models -> drift check
+apiVersion: batch/v1
+kind: CronJob
+metadata: {name: retailpulse-retrain}
+spec:
+  schedule: "0 2 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pipeline
+              image: retailpulse:latest
+              command: ["python", "-m", "retailpulse.pipeline"]
+              volumeMounts: [{name: outputs, mountPath: /app/outputs}]
+          volumes:
+            - name: outputs
+              persistentVolumeClaim: {claimName: retailpulse-outputs}
